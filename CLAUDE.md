@@ -31,6 +31,7 @@ This is intentional: it keeps latency under 300 ms (RE-007) and simplifies the M
 | Undo/redo | zundo | 3 |
 | Code viewer | CodeMirror 6 | 6 |
 | ID generation | nanoid | 5 |
+| YAML parsing | yaml | 2 |
 | Auth + DB | Supabase | **not yet integrated** |
 
 ---
@@ -55,7 +56,19 @@ src/
 │   ├── terraform.ts                ← generateTerraform(nodes, edges) → string
 │   └── index.ts                    ← dispatcher: generateCode(nodes, edges, target)
 │
+├── parsers/
+│   ├── docker-compose.ts       ← YAML string → { nodes, edges, warnings }
+│   │                             Infers ComponentType from image name.
+│   │                             Builds edges from depends_on.
+│   ├── terraform.ts            ← HCL string → { nodes, edges, warnings }
+│   │                             Extracts resource blocks via brace-depth scanning.
+│   │                             Builds edges from aws_security_group_rule blocks.
+│   └── index.ts                ← re-exports parseDockerCompose, parseTerraform
+│
 ├── components/
+│   ├── import/
+│   │   └── ImportModal.tsx      ← Modal with textarea + target tabs. Calls parser,
+│   │                              then useCanvasStore.setState({ nodes, edges }).
 │   ├── canvas/
 │   │   ├── CanvasPane.tsx          ← ReactFlow wrapper. Handles keyboard shortcuts,
 │   │   │                             undo/redo buttons, empty state, status counters.
@@ -293,7 +306,53 @@ are all in `src/index.css`. Don't add them inline in components.
 
 ---
 
-## 12. What is NOT yet built (next steps)
+## 12. Reverse engineering — import flow
+
+Users can paste an existing Docker Compose or Terraform file into the Import modal
+(header → 🔄 Import button) and get the canvas auto-populated.
+
+### How parsers work
+
+**Docker Compose** (`parsers/docker-compose.ts`):
+- Parses YAML with the `yaml` package
+- Each `services.*` key → one canvas node
+- Image name → `ComponentType` + `runtime` via `inferType()` / `inferRuntime()`
+- `depends_on` list/object → directed edges
+- `ports`, `deploy.replicas`, `environment` → properties
+
+**Terraform** (`parsers/terraform.ts`):
+- No external HCL parser — uses `extractBlocks()` which scans brace depth
+- `resource "aws_TYPE" "NAME"` → ComponentType via `AWS_TO_COMPONENT` map
+- `tags.Name` is used as the node label when available
+- `aws_security_group_rule "A_to_B"` → edge from A to B
+- Skips unknown resource types with a warning
+
+### ParseResult shape
+
+```ts
+interface ParseResult {
+  nodes: Node<ArchNodeData>[]
+  edges: Edge[]
+  warnings: string[]   // non-fatal issues shown in the modal
+}
+```
+
+### Adding support for a new image → type mapping
+
+Edit `inferType()` in `parsers/docker-compose.ts`. The function takes the raw
+image string (e.g. `"kong:3"`) and returns a `ComponentType`.
+
+### Adding support for a new AWS resource type
+
+Add an entry to `AWS_TO_COMPONENT` in `parsers/terraform.ts`:
+```ts
+aws_msk_cluster: 'queue',
+```
+Then optionally handle property extraction in the `switch (componentType)` block.
+
+---
+
+## 13. What is NOT yet built (next steps)
 
 - **Auth + persistence** — Supabase integration (`src/lib/supabase.ts` exists but is empty).
   Needs: signup/login (RF-025/026), save/load project (RF-027/028), project list (RF-029/030), auto-save (RF-031).

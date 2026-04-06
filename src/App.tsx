@@ -4,6 +4,7 @@ import { CanvasPane } from './components/canvas/CanvasPane'
 import { ComponentPalette } from './components/sidebar/ComponentPalette'
 import { PropertiesPanel } from './components/properties/PropertiesPanel'
 import { CodePanel } from './components/code/CodePanel'
+import { ImportModal } from './components/import/ImportModal'
 import { useCanvasStore } from './store/canvas'
 
 export default function App() {
@@ -15,6 +16,7 @@ export default function App() {
   const [editingName, setEditingName] = useState(false)
   const [nameDraft, setNameDraft] = useState(projectName)
   const [showClearConfirm, setShowClearConfirm] = useState(false)
+  const [showImport, setShowImport] = useState(false)
 
   const commitName = useCallback(() => {
     const trimmed = nameDraft.trim()
@@ -110,6 +112,25 @@ export default function App() {
 
           <div style={{ flex: 1 }} />
 
+          {/* Import button */}
+          <button
+            onClick={() => setShowImport(true)}
+            style={{
+              padding: '4px 12px',
+              background: 'transparent',
+              border: '1px solid var(--border)',
+              borderRadius: 6,
+              color: 'var(--text-secondary)',
+              cursor: 'pointer',
+              fontSize: 12,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+            }}
+          >
+            🔄 Import
+          </button>
+
           {nodeCount > 0 && (
             <button
               onClick={handleClear}
@@ -137,6 +158,8 @@ export default function App() {
           <CodePanel />
         </div>
       </div>
+
+      {showImport && <ImportModal onClose={() => setShowImport(false)} />}
     </ReactFlowProvider>
   )
 }
