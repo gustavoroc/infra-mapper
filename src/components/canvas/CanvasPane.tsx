@@ -12,8 +12,10 @@ import {
 import type { ArchNodeData } from '../../types'
 import { useCanvasStore } from '../../store/canvas'
 import { ArchNode } from './nodes/ArchNode'
+import { QueueEdge } from './edges/QueueEdge'
 
 const NODE_TYPES = { archNode: ArchNode } as const
+const EDGE_TYPES = { queueEdge: QueueEdge } as const
 
 export function CanvasPane() {
   const nodes = useCanvasStore(s => s.nodes)
@@ -81,6 +83,7 @@ export function CanvasPane() {
         nodes={nodes}
         edges={edges}
         nodeTypes={NODE_TYPES}
+        edgeTypes={EDGE_TYPES}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}

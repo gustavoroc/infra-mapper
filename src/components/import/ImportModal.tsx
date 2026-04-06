@@ -51,7 +51,6 @@ export function ImportModal({ onClose }: Props) {
   const [warnings, setWarnings] = useState<string[]>([])
 
   const clearCanvas = useCanvasStore(s => s.clearCanvas)
-  const addNodeRaw = useCanvasStore.getState
 
   const handleImport = useCallback(() => {
     setError(null)

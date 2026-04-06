@@ -13,6 +13,8 @@ type ArchNodeProps = NodeProps<Node<ArchNodeData>>
 function ArchNodeComponent({ id, data: rawData, selected }: ArchNodeProps) {
   const data = rawData as ArchNodeData
   const renameNode = useCanvasStore(s => s.renameNode)
+  const edges = useCanvasStore(s => s.edges)
+
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(data.label)
 
@@ -22,37 +24,75 @@ function ArchNodeComponent({ id, data: rawData, selected }: ArchNodeProps) {
   }, [id, draft, renameNode])
 
   const emoji = EMOJI_BY_TYPE[data.componentType] ?? '📦'
+  const isQueue = data.componentType === 'queue'
+  const isConnected = isQueue && edges.some(e => e.source === id || e.target === id)
 
   return (
     <div
       style={{
+        position: 'relative',
         background: 'var(--bg-secondary)',
         border: selected
-          ? '2px solid var(--accent)'
-          : '2px solid var(--border)',
+          ? `2px solid ${isQueue ? '#f59e0b' : 'var(--accent)'}`
+          : `2px solid ${isConnected ? 'rgba(245,158,11,0.45)' : 'var(--border)'}`,
         borderRadius: 10,
         padding: '10px 14px',
         minWidth: 130,
         maxWidth: 180,
         boxShadow: selected
-          ? '0 0 0 3px var(--accent-dim)'
-          : '0 2px 8px rgba(0,0,0,0.4)',
+          ? `0 0 0 3px ${isQueue ? 'rgba(245,158,11,0.2)' : 'var(--accent-dim)'}`
+          : isConnected
+            ? '0 0 12px rgba(245,158,11,0.15)'
+            : '0 2px 8px rgba(0,0,0,0.4)',
         cursor: 'grab',
         userSelect: 'none',
-        transition: 'border-color 0.15s, box-shadow 0.15s',
+        transition: 'border-color 0.2s, box-shadow 0.2s',
+        ...(isConnected ? { className: 'queue-node-active' } : {}),
       }}
+      className={isConnected ? 'queue-node-active' : undefined}
     >
+      {/* Pulse rings — only when queue is connected */}
+      {isConnected && (
+        <>
+          <div className="queue-node-ring" />
+          <div className="queue-node-ring queue-node-ring-2" />
+        </>
+      )}
+
       <Handle type="source" position={Position.Top} />
 
       {/* Icon + type label */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-        <span style={{ fontSize: 18 }}>{emoji}</span>
-        <span style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+        <span style={{ fontSize: 18 }}>
+          {emoji}
+          {/* Live indicator dot */}
+          {isConnected && (
+            <span style={{
+              display: 'inline-block',
+              width: 6,
+              height: 6,
+              background: '#f59e0b',
+              borderRadius: '50%',
+              marginLeft: 3,
+              verticalAlign: 'middle',
+              boxShadow: '0 0 4px #f59e0b',
+              animation: 'queue-ring-inner 1.6s ease-out infinite',
+            }} />
+          )}
+        </span>
+        <span style={{
+          fontSize: 10,
+          color: isConnected ? 'rgba(245,158,11,0.8)' : 'var(--text-secondary)',
+          textTransform: 'uppercase',
+          letterSpacing: '0.05em',
+          transition: 'color 0.2s',
+        }}>
           {data.componentType}
+          {isConnected && <span style={{ marginLeft: 4, opacity: 0.7 }}>● live</span>}
         </span>
       </div>
 
-      {/* Label — double-click to rename (RF-005) */}
+      {/* Label — double-click to rename */}
       {editing ? (
         <input
           autoFocus

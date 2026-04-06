@@ -149,12 +149,23 @@ export const useCanvasStore = create<CanvasState>()(
       // ── Edges ──────────────────────────────────────────────────────────────
 
       addEdge: (connection) => {
-        const { edges } = get()
+        const { edges, nodes } = get()
         if (connection.source === connection.target) return // RE-006: no self-loops
         const duplicate = edges.some(
           e => e.source === connection.source && e.target === connection.target
         )
         if (duplicate) return // RE-006: no duplicate connections
+
+        // Detect queue connections to apply animated edge type
+        const sourceNode = nodes.find(n => n.id === connection.source)
+        const targetNode = nodes.find(n => n.id === connection.target)
+        const sourceIsQueue = sourceNode?.data.componentType === 'queue'
+        const targetIsQueue = targetNode?.data.componentType === 'queue'
+
+        const isQueueEdge = sourceIsQueue || targetIsQueue
+        const queueRole = targetIsQueue ? 'produce'       // A → Queue
+          : sourceIsQueue ? 'consume'                     // Queue → B
+          : undefined
 
         const edge: Edge = {
           id: `edge_${nanoid(8)}`,
@@ -162,6 +173,8 @@ export const useCanvasStore = create<CanvasState>()(
           target: connection.target,
           sourceHandle: connection.sourceHandle ?? undefined,
           targetHandle: connection.targetHandle ?? undefined,
+          type: isQueueEdge ? 'queueEdge' : undefined,
+          data: queueRole ? { role: queueRole } : undefined,
           animated: false,
         }
         set({ edges: addEdge(edge, edges) })
