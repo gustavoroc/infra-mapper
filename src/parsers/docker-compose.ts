@@ -171,12 +171,14 @@ export function parseDockerCompose(content: string): ParseResult {
     })
   }
 
+  // Build a quick lookup: nodeId → componentType
+  const idToType = new Map(nodes.map(n => [n.id, n.data.componentType]))
+
   // Build edges from depends_on
   for (const [svcName, svc] of Object.entries(services)) {
     const raw = svc.depends_on
     if (!raw) continue
 
-    // depends_on can be a list or an object { svc: { condition: ... } }
     const deps: string[] = Array.isArray(raw) ? raw : Object.keys(raw as object)
 
     for (const dep of deps) {
@@ -186,10 +188,18 @@ export function parseDockerCompose(content: string): ParseResult {
         warnings.push(`depends_on: service "${dep}" not found — skipping edge.`)
         continue
       }
+
+      const sourceIsQueue = idToType.get(sourceId) === 'queue'
+      const targetIsQueue = idToType.get(targetId) === 'queue'
+      const isQueueEdge = sourceIsQueue || targetIsQueue
+      const queueRole = targetIsQueue ? 'produce' : sourceIsQueue ? 'consume' : undefined
+
       edges.push({
         id: `edge_${nanoid(8)}`,
         source: sourceId,
         target: targetId,
+        type: isQueueEdge ? 'queueEdge' : undefined,
+        data: queueRole ? { role: queueRole } : undefined,
         animated: false,
       })
     }

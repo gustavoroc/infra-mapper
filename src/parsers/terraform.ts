@@ -174,6 +174,24 @@ export function parseTerraform(content: string): ParseResult {
     })
   }
 
+  // Build a quick lookup: nodeId → componentType
+  const idToType = new Map(nodes.map(n => [n.id, n.data.componentType]))
+
+  function makeEdge(srcId: string, dstId: string) {
+    const sourceIsQueue = idToType.get(srcId) === 'queue'
+    const targetIsQueue = idToType.get(dstId) === 'queue'
+    const isQueueEdge = sourceIsQueue || targetIsQueue
+    const queueRole = targetIsQueue ? 'produce' : sourceIsQueue ? 'consume' : undefined
+    edges.push({
+      id: `edge_${nanoid(8)}`,
+      source: srcId,
+      target: dstId,
+      type: isQueueEdge ? 'queueEdge' : undefined,
+      data: queueRole ? { role: queueRole } : undefined,
+      animated: false,
+    })
+  }
+
   // Build edges from aws_security_group_rule blocks
   const sgRuleBlocks = resourceBlocks.filter(b => b.labels[0] === 'aws_security_group_rule')
   for (const block of sgRuleBlocks) {
@@ -184,12 +202,7 @@ export function parseTerraform(content: string): ParseResult {
       const srcId = nameToId.get(parts[0])
       const dstId = nameToId.get(parts[1])
       if (srcId && dstId) {
-        edges.push({
-          id: `edge_${nanoid(8)}`,
-          source: srcId,
-          target: dstId,
-          animated: false,
-        })
+        makeEdge(srcId, dstId)
         continue
       }
     }
@@ -200,7 +213,7 @@ export function parseTerraform(content: string): ParseResult {
       const srcId = nameToId.get(src)
       const dstId = nameToId.get(dst)
       if (srcId && dstId) {
-        edges.push({ id: `edge_${nanoid(8)}`, source: srcId, target: dstId, animated: false })
+        makeEdge(srcId, dstId)
       }
     }
   }

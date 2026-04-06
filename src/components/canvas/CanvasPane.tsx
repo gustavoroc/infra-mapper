@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import { useStore } from 'zustand'
 import {
   ReactFlow,
@@ -6,6 +6,7 @@ import {
   BackgroundVariant,
   Controls,
   MiniMap,
+  useReactFlow,
   type OnConnect,
   type NodeMouseHandler,
 } from '@xyflow/react'
@@ -13,6 +14,7 @@ import type { ArchNodeData } from '../../types'
 import { useCanvasStore } from '../../store/canvas'
 import { ArchNode } from './nodes/ArchNode'
 import { QueueEdge } from './edges/QueueEdge'
+import { applyDagreLayout } from '../../lib/layout'
 
 const NODE_TYPES = { archNode: ArchNode } as const
 const EDGE_TYPES = { queueEdge: QueueEdge } as const
@@ -30,6 +32,18 @@ export function CanvasPane() {
 
   // Undo/redo via zundo temporal store
   const { undo, redo, pastStates, futureStates } = useStore(useCanvasStore.temporal)
+
+  // Auto-layout
+  const { fitView } = useReactFlow()
+  const [laying, setLaying] = useState(false)
+
+  const handleLayout = useCallback(() => {
+    setLaying(true)
+    const layouted = applyDagreLayout(nodes, edges)
+    useCanvasStore.setState({ nodes: layouted })
+    // wait a tick for React Flow to render the new positions, then fit
+    setTimeout(() => { fitView({ padding: 0.15, duration: 400 }); setLaying(false) }, 50)
+  }, [nodes, edges, fitView])
 
   const onConnect: OnConnect = useCallback(
     connection => addEdgeAction(connection),
@@ -70,11 +84,38 @@ export function CanvasPane() {
         <Pill>{edges.length} connections</Pill>
       </div>
 
-      {/* Undo/Redo (RF-012) */}
+      {/* Undo/Redo + Auto-layout */}
       <div style={{
         position: 'absolute', top: 12, right: 12, zIndex: 10,
-        display: 'flex', gap: 6,
+        display: 'flex', gap: 6, alignItems: 'center',
       }}>
+        {nodes.length > 1 && (
+          <button
+            onClick={handleLayout}
+            disabled={laying}
+            title="Auto-layout (dagre)"
+            style={{
+              background: 'var(--bg-secondary)',
+              border: '1px solid var(--border)',
+              borderRadius: 6,
+              color: laying ? 'var(--text-secondary)' : 'var(--text-primary)',
+              cursor: laying ? 'wait' : 'pointer',
+              fontSize: 11,
+              fontWeight: 600,
+              height: 30,
+              padding: '0 10px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+              letterSpacing: '0.02em',
+              transition: 'border-color 0.15s, color 0.15s',
+            }}
+            onMouseEnter={e => { if (!laying) (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--accent)' }}
+            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border)' }}
+          >
+            <span style={{ fontSize: 13 }}>⬡</span> Auto-layout
+          </button>
+        )}
         <IconBtn onClick={undo} active={pastStates.length > 0} title="Undo (Ctrl+Z)">↩</IconBtn>
         <IconBtn onClick={redo} active={futureStates.length > 0} title="Redo (Ctrl+Shift+Z)">↪</IconBtn>
       </div>
