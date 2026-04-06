@@ -182,11 +182,6 @@ export interface SerializedConnection {
   to: string
 }
 
-// ─── Plan limits ─────────────────────────────────────────────────────────────
+// ─── Available IaC targets ────────────────────────────────────────────────────
 
-export type Plan = 'free' | 'pro'
-
-export const PLAN_LIMITS = {
-  free: { maxComponents: 15, maxProjects: 1, targets: ['docker-compose'] as IaCTarget[] },
-  pro:  { maxComponents: Infinity, maxProjects: Infinity, targets: ['docker-compose', 'terraform'] as IaCTarget[] },
-}
+export const ALL_TARGETS: IaCTarget[] = ['docker-compose', 'terraform']

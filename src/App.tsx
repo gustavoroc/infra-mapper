@@ -11,7 +11,6 @@ export default function App() {
   const setProjectName = useCanvasStore(s => s.setProjectName)
   const clearCanvas = useCanvasStore(s => s.clearCanvas)
   const nodeCount = useCanvasStore(s => s.nodes.length)
-  const plan = useCanvasStore(s => s.plan)
 
   const [editingName, setEditingName] = useState(false)
   const [nameDraft, setNameDraft] = useState(projectName)
@@ -67,7 +66,7 @@ export default function App() {
 
           <div style={{ width: 1, height: 20, background: 'var(--border)' }} />
 
-          {/* Project name */}
+          {/* Project name — double-click to rename */}
           {editingName ? (
             <input
               autoFocus
@@ -128,20 +127,6 @@ export default function App() {
               {showClearConfirm ? '⚠ Click again to confirm' : 'Clear canvas'}
             </button>
           )}
-
-          <span style={{
-            padding: '2px 8px',
-            borderRadius: 20,
-            fontSize: 11,
-            fontWeight: 600,
-            background: plan === 'pro' ? 'var(--accent-dim)' : 'var(--bg-tertiary)',
-            border: `1px solid ${plan === 'pro' ? 'var(--accent)' : 'var(--border)'}`,
-            color: plan === 'pro' ? 'var(--accent)' : 'var(--text-secondary)',
-            textTransform: 'uppercase' as const,
-            letterSpacing: '0.06em',
-          }}>
-            {plan === 'pro' ? '⚡ Pro' : 'Free'}
-          </span>
         </header>
 
         {/* Main layout */}

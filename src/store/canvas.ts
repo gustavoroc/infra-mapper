@@ -15,10 +15,8 @@ import {
   type ArchNodeData,
   type ComponentType,
   type IaCTarget,
-  type Plan,
   COMPONENT_PROPS,
   COMPONENT_CATALOG,
-  PLAN_LIMITS,
 } from '../types'
 
 // ─── State shape ─────────────────────────────────────────────────────────────
@@ -28,7 +26,6 @@ export interface CanvasState {
   edges: Edge[]
   selectedNodeId: string | null
   activeTarget: IaCTarget
-  plan: Plan
   projectName: string
 
   // Node actions
@@ -70,16 +67,12 @@ function buildLabel(type: ComponentType, existingLabels: string[]): string {
 }
 
 function safePosition(existing: Node[]): { x: number; y: number } {
-  const padding = 40
   const step = 160
+  const padding = 40
   let x = 120 + (existing.length % 5) * step
   let y = 120 + Math.floor(existing.length / 5) * step
-  // avoid exact overlap
   const occupied = new Set(existing.map(n => `${n.position.x},${n.position.y}`))
-  while (occupied.has(`${x},${y}`)) {
-    x += padding
-    y += padding
-  }
+  while (occupied.has(`${x},${y}`)) { x += padding; y += padding }
   return { x, y }
 }
 
@@ -92,16 +85,12 @@ export const useCanvasStore = create<CanvasState>()(
       edges: [],
       selectedNodeId: null,
       activeTarget: 'docker-compose',
-      plan: 'free',
       projectName: 'My Architecture',
 
       // ── Nodes ──────────────────────────────────────────────────────────────
 
       addNode: (type) => {
-        const { nodes, plan } = get()
-        const limit = PLAN_LIMITS[plan].maxComponents
-        if (nodes.length >= limit) return // RE-001 — caller shows feedback
-
+        const { nodes } = get()
         const existingLabels = nodes.map(n => n.data.label)
         const label = buildLabel(type, existingLabels)
         const position = safePosition(nodes)
@@ -113,7 +102,7 @@ export const useCanvasStore = create<CanvasState>()(
           data: {
             componentType: type,
             label,
-            properties: defaultProperties(type), // RE-008
+            properties: defaultProperties(type),
           },
         }
         set({ nodes: [...nodes, node] })
@@ -138,7 +127,7 @@ export const useCanvasStore = create<CanvasState>()(
       selectNode: (id) => set({ selectedNodeId: id }),
 
       renameNode: (id, label) => {
-        const trimmed = label.trim().slice(0, 50) // RE-004 / RF-016
+        const trimmed = label.trim().slice(0, 50)
         if (!trimmed) return
         set(s => ({
           nodes: s.nodes.map(n =>
@@ -161,13 +150,11 @@ export const useCanvasStore = create<CanvasState>()(
 
       addEdge: (connection) => {
         const { edges } = get()
-        // RE-006: no auto-connections
-        if (connection.source === connection.target) return
-        // RE-006: no duplicate connections
+        if (connection.source === connection.target) return // RE-006: no self-loops
         const duplicate = edges.some(
           e => e.source === connection.source && e.target === connection.target
         )
-        if (duplicate) return
+        if (duplicate) return // RE-006: no duplicate connections
 
         const edge: Edge = {
           id: `edge_${nanoid(8)}`,
@@ -203,9 +190,8 @@ export const useCanvasStore = create<CanvasState>()(
       },
     }),
     {
-      // Only track canvas mutations for undo/redo (not UI state)
       partialize: (state) => ({ nodes: state.nodes, edges: state.edges }),
-      limit: 30, // RF-012: min 30 history entries
+      limit: 30,
     }
   )
 )
